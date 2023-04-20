@@ -2,7 +2,6 @@ package chaos
 
 import (
 	"encoding/json"
-	"fmt"
 
 	"github.com/sagarkrsd/chaos-go-client/pkg/utils"
 )
@@ -31,6 +30,12 @@ type UserDetails struct {
 type InstallationType string
 
 type InfrastructureType string
+
+const (
+	InfrastructureTypeKubernetes InfrastructureType = "Kubernetes"
+	InfrastructureTypeLinux      InfrastructureType = "Linux"
+	InfrastructureTypeAll        InfrastructureType = "All"
+)
 
 type UpdateStatus string
 
@@ -156,17 +161,91 @@ type Weightages struct {
 	Weightage int `json:"weightage"`
 }
 
+type ListWorkflowRunVariables struct {
+	Identifiers Identifiers        `json:"identifiers"`
+	Request     ListWorkflowRunReq `json:"request"`
+}
+
+type ListWorkflowRunReq struct {
+	NotifyIDs []string `json:"notifyIDs"`
+}
+
 // ListWorkflowRun lists all the runs of a given Chaos workflow/experiment.
-func ListWorkflowRun(url, notifyID string, identifiers Identifiers) (ListWorkflowRn, error) {
+func ListWorkflowRun(req ListWorkflowRunReq, url, notifyID string, identifiers Identifiers) (ListWorkflowRn, error) {
 	method := "POST"
 
-	listWorkflowRunAPIQuery :=
-		fmt.Sprintf("{\"query\":\"query ListWorkflowRun(\\n  $identifiers: IdentifiersRequest!,\\n  $request: ListWorkflowRunRequest!\\n) {\\n  listWorkflowRun(\\n    identifiers: $identifiers,\\n    request: $request\\n  ) {\\n    totalNoOfWorkflowRuns\\n    workflowRuns {\\n      identifiers {\\n          orgIdentifier\\n          projectIdentifier\\n          accountIdentifier\\n      }\\n      workflowRunID\\n      workflowID\\n      weightages {\\n        experimentName\\n        weightage\\n      }\\n      updatedAt\\n      createdAt\\n      infra {\\n        infraID\\n        infraNamespace\\n        infraScope\\n        isActive\\n        isInfraConfirmed\\n      }\\n      workflowName\\n      workflowManifest\\n      phase\\n      resiliencyScore\\n      experimentsPassed\\n      experimentsFailed\\n      experimentsAwaited\\n      experimentsStopped\\n      experimentsNa\\n      totalExperiments\\n      executionData\\n      isRemoved\\n      updatedBy {\\n        userID\\n        username\\n      }\\n      createdBy {\\n        username\\n        userID\\n      }\\n    }\\n  }\\n}\",\"variables\":{\"identifiers\":{\"orgIdentifier\":\"%s\",\"accountIdentifier\":\"%s\",\"projectIdentifier\":\"%s\"},\"request\":{\"notifyIDs\":[\"%s\"]}}}",
-			identifiers.OrgIdentifier, identifiers.AccountIdentifier, identifiers.ProjectIdentifier, notifyID)
+	/*
+		listWorkflowRunAPIQuery :=
+			fmt.Sprintf("{\"query\":\"query ListWorkflowRun(\\n  $identifiers: IdentifiersRequest!,\\n  $request: ListWorkflowRunRequest!\\n) {\\n  listWorkflowRun(\\n    identifiers: $identifiers,\\n    request: $request\\n  ) {\\n    totalNoOfWorkflowRuns\\n    workflowRuns {\\n      identifiers {\\n          orgIdentifier\\n          projectIdentifier\\n          accountIdentifier\\n      }\\n      workflowRunID\\n      workflowID\\n      weightages {\\n        experimentName\\n        weightage\\n      }\\n      updatedAt\\n      createdAt\\n      infra {\\n        infraID\\n        infraNamespace\\n        infraScope\\n        isActive\\n        isInfraConfirmed\\n      }\\n      workflowName\\n      workflowManifest\\n      phase\\n      resiliencyScore\\n      experimentsPassed\\n      experimentsFailed\\n      experimentsAwaited\\n      experimentsStopped\\n      experimentsNa\\n      totalExperiments\\n      executionData\\n      isRemoved\\n      updatedBy {\\n        userID\\n        username\\n      }\\n      createdBy {\\n        username\\n        userID\\n      }\\n    }\\n  }\\n}\",\"variables\":{\"identifiers\":{\"orgIdentifier\":\"%s\",\"accountIdentifier\":\"%s\",\"projectIdentifier\":\"%s\"},\"request\":{\"notifyIDs\":[\"%s\"]}}}",
+				identifiers.OrgIdentifier, identifiers.AccountIdentifier, identifiers.ProjectIdentifier, notifyID)
+
+	*/
 
 	listWorkflowRunRes := ListWorkflowRunResponse{}
 
-	response, err := utils.SendRequest(url, method, listWorkflowRunAPIQuery)
+	variables := ListWorkflowRunVariables{
+		Identifiers: identifiers,
+		Request:     req,
+	}
+	query := map[string]interface{}{
+		"query": `
+		query ListWorkflowRun(
+			$identifiers: IdentifiersRequest!,
+			$request: ListWorkflowRunRequest!
+		  ) {
+			listWorkflowRun(
+			  identifiers: $identifiers,
+			  request: $request
+			) {
+			  totalNoOfWorkflowRuns
+			  workflowRuns {
+				identifiers {
+					orgIdentifier
+					projectIdentifier
+					accountIdentifier
+				}
+				workflowRunID
+				workflowID
+				weightages {
+				  experimentName
+				  weightage
+				}
+				updatedAt
+				createdAt
+				infra {
+				  infraID
+				  infraNamespace
+				  infraScope
+				  isActive
+				  isInfraConfirmed
+				}
+				workflowName
+				workflowManifest
+				phase
+				resiliencyScore
+				experimentsPassed
+				experimentsFailed
+				experimentsAwaited
+				experimentsStopped
+				experimentsNa
+				totalExperiments
+				executionData
+				isRemoved
+				updatedBy {
+				  userID
+				  username
+				}
+				createdBy {
+				  username
+				  userID
+				}
+			  }
+			}
+		}
+		`,
+		"variables": variables,
+	}
+	response, err := utils.SendRequest(url, method, query)
 	if err != nil {
 		return listWorkflowRunRes.Data.ListWorkflowRun, err
 	}

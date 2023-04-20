@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -9,14 +10,15 @@ import (
 )
 
 // SendRequest sends a HTTP request and returns the response body
-func SendRequest(url, method, payload string) ([]byte, error) {
-
+func SendRequest(url, method string, payload map[string]interface{}) ([]byte, error) {
 	client := &http.Client{}
-	body := strings.NewReader(payload)
-
-	req, err := http.NewRequest(method, url, body)
+	body, err := json.Marshal(payload)
 	if err != nil {
-		fmt.Println(err)
+		return nil, err
+	}
+
+	req, err := http.NewRequest(method, url, strings.NewReader(string(body)))
+	if err != nil {
 		return nil, err
 	}
 	// API key should be exported as an ENV: X_API_KEY
@@ -36,7 +38,7 @@ func SendRequest(url, method, payload string) ([]byte, error) {
 		return nil, err
 	}
 	if res.StatusCode != http.StatusOK {
-		fmt.Println("Non-OK HTTP status:", res.StatusCode)
+		fmt.Printf("\nNon-OK HTTP status: %+v, responseBody: %+v\n", res.StatusCode, string(resBody))
 		// You may read / inspect response body
 		return resBody, fmt.Errorf("Non-OK HTTP status: %+v", res.StatusCode)
 	}

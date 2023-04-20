@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/sagarkrsd/chaos-go-client/pkg/chaos"
+	"github.com/sagarkrsd/chaos-go-client/pkg/chaos/examples/pod-delete-experiment/manifests"
 )
 
 func main() {
@@ -26,7 +27,20 @@ func main() {
 
 	// Register a new infra if not already registered
 	fmt.Println("Registering a new Chaos infra...")
-	registerInfraRes, err := chaos.RegisterNewInfra(url, identifiers)
+	registerInfraReq := chaos.RegisterInfraRequest{
+		Name:             "my-chaos-demo-infra",
+		EnvironmentID:    "my-chaos-demo-env",
+		Description:      "Chaos Demo Environment",
+		PlatformName:     "my-chaos-demo-platform",
+		InfraNamespace:   "hce",
+		ServiceAccount:   "hce",
+		InfraScope:       "cluster",
+		InfraNsExists:    false,
+		InfraSaExists:    false,
+		InstallationType: "MANIFEST",
+		SkipSsl:          false,
+	}
+	registerInfraRes, err := chaos.RegisterNewInfra(registerInfraReq, url, identifiers)
 	if err != nil {
 		fmt.Printf("Error registering a new Chaos infra: %+v", err)
 		return
@@ -93,7 +107,27 @@ getInfraDetails:
 	// Now create a Chaos workflow for running pod delete experiment on boutique application - cart service's pod
 	// in hce namespace...
 	fmt.Println("Creating a new Chaos workflow for running pod delete experiment on Boutique app...")
-	createWorkflowRes, err := chaos.CreateChaosWorkFlow(url, infraID, identifiers)
+
+	runExp := false
+	infraType := chaos.InfrastructureTypeKubernetes
+	workflowToCreate := chaos.ChaosWorkFlowRequest{
+		CronSyntax:          "",
+		WorkflowName:        "my-pod-delete-experiment",
+		RunExperiment:       &runExp,
+		WorkflowDescription: "This is a pod delete experiment",
+		Weightages: []*chaos.WeightagesInput{
+			{
+				ExperimentName: "pod-delete-ji5",
+				Weightage:      10,
+			},
+		},
+		IsCustomWorkflow: true,
+		InfraID:          infraID,
+		InfraType:        &infraType,
+		Tags:             []string{"test", "workflow", "gke"},
+		WorkflowManifest: string(manifests.PodDeleteWorkflowManifest),
+	}
+	createWorkflowRes, err := chaos.CreateChaosWorkFlow(workflowToCreate, url, infraID, identifiers)
 	if err != nil {
 		fmt.Printf("\nFailed to create Chaos workflow: %+v\n", err)
 		return
@@ -113,11 +147,13 @@ getInfraDetails:
 	}
 
 	fmt.Println("Preparing to view the details of the ongoing pod delete experiment...")
-
+	workflowRunToList := chaos.ListWorkflowRunReq{
+		NotifyIDs: []string{runChaosExperimentRes.NotifyID},
+	}
 viewChaosExpDetails:
 	for {
 		// Fetch/Observe the details of the above Chaos experiment run
-		listWorkflowRunRes, err := chaos.ListWorkflowRun(url, runChaosExperimentRes.NotifyID, identifiers)
+		listWorkflowRunRes, err := chaos.ListWorkflowRun(workflowRunToList, url, runChaosExperimentRes.NotifyID, identifiers)
 		if err != nil {
 			fmt.Printf("\nFailed to list the runs of a given Chaos experiment: %+v\n", err)
 			return

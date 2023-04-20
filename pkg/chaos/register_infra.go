@@ -2,7 +2,6 @@ package chaos
 
 import (
 	"encoding/json"
-	"fmt"
 
 	"github.com/sagarkrsd/chaos-go-client/pkg/utils"
 )
@@ -22,16 +21,53 @@ type RegisterInfra struct {
 	Manifest string `json:"manifest"`
 }
 
-// RegisterInfra registers a new Chaos infrastructure.
-func RegisterNewInfra(url string, identifiers Identifiers) (RegisterInfra, error) {
-	method := "POST"
-	registerInfraAPIQuery :=
-		fmt.Sprintf("{\"query\":\"mutation($identifiers: IdentifiersRequest!, $request: RegisterInfraRequest!) {\\n  registerInfra(identifiers: $identifiers, request: $request) {\\n    token\\n    infraID\\n    name\\n    manifest\\n  }\\n}\\n\",\"variables\":{\"identifiers\":{\"orgIdentifier\":\"%s\",\"accountIdentifier\":\"%s\",\"projectIdentifier\":\"%s\"},\"request\":{\"name\":\"my-chaos-demo-infra\",\"environmentID\":\"my-chaos-demo-env\",\"description\":\"Chaos Demo Environment\",\"platformName\":\"my-chaos-demo-platform\",\"infraNamespace\":\"hce\",\"serviceAccount\":\"hce\",\"infraScope\":\"cluster\",\"infraNsExists\":false,\"infraSaExists\":false,\"installationType\":\"MANIFEST\",\"skipSsl\":false}}}",
-			identifiers.OrgIdentifier, identifiers.AccountIdentifier, identifiers.ProjectIdentifier)
+type RegisterInfraRequest struct {
+	Name             string `json:"name"`
+	EnvironmentID    string `json:"environmentID"`
+	Description      string `json:"description"`
+	PlatformName     string `json:"platformName"`
+	InfraNamespace   string `json:"infraNamespace"`
+	ServiceAccount   string `json:"serviceAccount"`
+	InfraScope       string `json:"infraScope"`
+	InfraNsExists    bool   `json:"infraNsExists"`
+	InfraSaExists    bool   `json:"infraSaExists"`
+	InstallationType string `json:"installationType"`
+	SkipSsl          bool   `json:"skipSsl"`
+}
 
+type RegisterInfraVariables struct {
+	Identifiers Identifiers `json:"identifiers"`
+	Request     interface{} `json:"request"`
+}
+
+// RegisterInfra registers a new Chaos infrastructure.
+func RegisterNewInfra(req RegisterInfraRequest, url string, identifiers Identifiers) (RegisterInfra, error) {
+	method := "POST"
 	registerInfraRes := RegisterInfraResponse{}
 
-	response, err := utils.SendRequest(url, method, registerInfraAPIQuery)
+	/*registerInfraAPIQuery :=
+	fmt.Sprintf("{\"query\":\"mutation($identifiers: IdentifiersRequest!, $request: RegisterInfraRequest!) {\\n  registerInfra(identifiers: $identifiers, request: $request) {\\n    token\\n    infraID\\n    name\\n    manifest\\n  }\\n}\\n\",\"variables\":{\"identifiers\":{\"orgIdentifier\":\"%s\",\"accountIdentifier\":\"%s\",\"projectIdentifier\":\"%s\"},\"request\":{\"name\":\"my-chaos-demo-infra\",\"environmentID\":\"my-chaos-demo-env\",\"description\":\"Chaos Demo Environment\",\"platformName\":\"my-chaos-demo-platform\",\"infraNamespace\":\"hce\",\"serviceAccount\":\"hce\",\"infraScope\":\"cluster\",\"infraNsExists\":false,\"infraSaExists\":false,\"installationType\":\"MANIFEST\",\"skipSsl\":false}}}",
+		identifiers.OrgIdentifier, identifiers.AccountIdentifier, identifiers.ProjectIdentifier)
+	*/
+	variables := RegisterInfraVariables{
+		Identifiers: identifiers,
+		Request:     req,
+	}
+	query := map[string]interface{}{
+		"query": `
+		mutation($identifiers: IdentifiersRequest!, $request: RegisterInfraRequest!) {
+			registerInfra(identifiers: $identifiers, request: $request) {
+			  token
+			  infraID
+			  name
+			  manifest
+			}
+		}
+		`,
+		"variables": variables,
+	}
+
+	response, err := utils.SendRequest(url, method, query)
 	if err != nil {
 		return registerInfraRes.Data.RegisterInfra, err
 	}
